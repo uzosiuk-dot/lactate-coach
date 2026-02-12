@@ -1,0 +1,15 @@
+{
+  "name": "Lactate Coach (MVP)",
+  "short_name": "LactateCoach",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0b0c",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAs0lEQVR4nO3aMQ6CMBRF0b3/0q0mQ0Jq0GZbQx2Q4Hk0qfA3k8mS1wqk9z4b1oQAAAAAAAAAA4N0yq2z3g7m4f0o7m1gqkqzq9b1c3o9f3mQd8y0G3mJqvQm0o1w2s0l8bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqg0m3m3m0l4bWlqgAAAAAAAAAAAPwGxg0qv5c7yqIAAAAASUVORK5CYII=",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ]
+}
