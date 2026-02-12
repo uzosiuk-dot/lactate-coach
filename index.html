@@ -877,7 +877,7 @@ function parseTCX(doc) {
   const lapDist = [...doc.querySelectorAll("Lap DistanceMeters")]
     .map(n => safeNum(n.textContent?.trim()))
     .filter(n => n != null);
-  let distanceM = lapDist.length ? lapDist.reduce((a,b)=>a+b,0) : 0;
+  let distanceM = lapDist.length ? Math.max(...lapDist) : 0;
 
   if (!distanceM) {
     const tpDist = [...doc.querySelectorAll("Trackpoint DistanceMeters")]
