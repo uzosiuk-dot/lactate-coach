@@ -59,6 +59,7 @@
     <div class="row" style="flex:0;gap:8px">
       <button class="btn" id="btnExport" title="Eksport JSON">Eksport</button>
       <button class="btn btn-danger" id="btnReset" title="Kasuje bieżącą sesję">Reset sesji</button>
+      <button class="btn" id="btnInstall" style="display:none">Zainstaluj</button>
     </div>
   </div>
 </header>
@@ -812,6 +813,25 @@
       }
     });
   }
+  let deferredPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const b = document.getElementById("btnInstall");
+  if (b) b.style.display = "inline-block";
+});
+
+document.getElementById("btnInstall")?.addEventListener("click", async () => {
+  if (!deferredPrompt) {
+    alert("Odśwież stronę i poczekaj 10 sekund.");
+    return;
+  }
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById("btnInstall").style.display = "none";
+});
 </script>
 </body>
 </html>
