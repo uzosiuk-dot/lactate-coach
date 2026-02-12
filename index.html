@@ -798,6 +798,132 @@
     a.remove();
     URL.revokeObjectURL(url);
   });
+// ===========================
+// IMPORT TCX/GPX (MVP)
+// ===========================
+function parseXml(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.querySelector("parsererror")) return null;
+  return doc;
+}
+
+function safeNum(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(ss)}` : `${m}:${pad(ss)}`;
+}
+
+function getLapLen() {
+  // bierzemy z aktualnej sesji (hala 200 / stadion 400)
+  const surface = state?.session?.surface || "stadion";
+  if (surface === "hala") return 200;
+  if (surface === "stadion") return 400;
+  return 400;
+}
+
+function parseTCX(doc) {
+  const lapDist = [...doc.querySelectorAll("Lap DistanceMeters")]
+    .map(n => safeNum(n.textContent?.trim()))
+    .filter(n => n != null);
+  let distanceM = lapDist.length ? lapDist.reduce((a,b)=>a+b,0) : 0;
+
+  if (!distanceM) {
+    const tpDist = [...doc.querySelectorAll("Trackpoint DistanceMeters")]
+      .map(n => safeNum(n.textContent?.trim()))
+      .filter(n => n != null);
+    if (tpDist.length) distanceM = Math.max(...tpDist);
+  }
+
+  const lapTime = [...doc.querySelectorAll("Lap TotalTimeSeconds")]
+    .map(n => safeNum(n.textContent?.trim()))
+    .filter(n => n != null);
+  let durationS = lapTime.length ? lapTime.reduce((a,b)=>a+b,0) : 0;
+
+  if (!durationS) {
+    const times = [...doc.querySelectorAll("Trackpoint Time")]
+      .map(n => Date.parse(n.textContent?.trim()))
+      .filter(t => Number.isFinite(t));
+    if (times.length >= 2) durationS = (Math.max(...times) - Math.min(...times)) / 1000;
+  }
+
+  const hrVals = [...doc.querySelectorAll("Trackpoint HeartRateBpm Value")]
+    .map(n => safeNum(n.textContent?.trim()))
+    .filter(n => n != null && n > 20 && n < 250);
+
+  const hrAvg = hrVals.length ? (hrVals.reduce((a,b)=>a+b,0) / hrVals.length) : null;
+  const hrMax = hrVals.length ? Math.max(...hrVals) : null;
+
+  const lapsFromFile = doc.querySelectorAll("Lap").length || null;
+
+  return { source:"TCX", distanceM, durationS, hrAvg, hrMax, lapsFromFile };
+}
+
+function updateSessionImport(parsed) {
+  if (!state?.session) {
+    alert("Najpierw kliknij 'Zapisz start' w Sesji.");
+    return;
+  }
+  const lapLen = getLapLen();
+  const lapsEstimated = parsed.distanceM ? (parsed.distanceM / lapLen) : null;
+
+  state.session.import = {
+    ...parsed,
+    lapLen,
+    lapsEstimated,
+    importedAt: nowISO()
+  };
+
+  saveState();
+  renderAll();
+
+  const distKm = parsed.distanceM ? (parsed.distanceM/1000).toFixed(2) : "—";
+  const dur = parsed.durationS ? formatDuration(parsed.durationS) : "—";
+  const hr = `${parsed.hrAvg ? Math.round(parsed.hrAvg) : "—"} / ${parsed.hrMax ? Math.round(parsed.hrMax) : "—"}`;
+  alert(`Import OK (${parsed.source})\nDystans: ${distKm} km\nCzas: ${dur}\nHR avg/max: ${hr}`);
+}
+
+// klik w przycisk importu
+document.getElementById("btnImport")?.addEventListener("click", () => {
+  document.getElementById("fileImport")?.click();
+});
+
+// wybór pliku
+document.getElementById("fileImport")?.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const doc = parseXml(text);
+    if (!doc) {
+      alert("Nie mogę odczytać pliku XML.");
+      return;
+    }
+    const name = (file.name || "").toLowerCase();
+    let parsed = null;
+
+    if (name.endsWith(".tcx") || doc.querySelector("TrainingCenterDatabase")) {
+      parsed = parseTCX(doc);
+    } else {
+      alert("Na razie obsługuję TCX. Wyeksportuj TCX z Polar.");
+      return;
+    }
+
+    updateSessionImport(parsed);
+  } catch (err) {
+    alert("Błąd importu.");
+  } finally {
+    e.target.value = "";
+  }
+});
 
   // Initial render
   renderAll();
