@@ -1,0 +1,817 @@
+
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>Lactate Coach (MVP)</title>
+  <style>
+    :root { --bg:#0b0b0c; --card:#141416; --muted:#a9a9ad; --text:#f1f1f3; --line:#26262a; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+    header{padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,11,12,.9);backdrop-filter: blur(8px)}
+    header .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{font-size:16px;margin:0}
+    main{padding:16px;max-width:820px;margin:0 auto}
+    .grid{display:grid;gap:12px}
+    @media(min-width:720px){.grid-2{grid-template-columns:1fr 1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 6px}
+    input, select, button, textarea{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+      background:#0f0f11; color:var(--text); font-size:14px;
+    }
+    input[type="number"]{appearance:textfield}
+    .row{display:flex;gap:10px;align-items:center}
+    .row > *{flex:1}
+    .btn{cursor:pointer;border:1px solid var(--line);background:#19191c}
+    .btn:active{transform:scale(.99)}
+    .btn-primary{background:#2a2a30;border-color:#33333a}
+    .btn-danger{background:#2a1416;border-color:#5a2a2e}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#0f0f11;border-radius:999px;padding:8px 10px;font-size:12px;color:var(--muted)}
+    .big{font-size:22px;font-weight:700;letter-spacing:.2px}
+    .status{display:flex;flex-direction:column;gap:6px}
+    .status .tag{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:10px 12px;font-weight:700}
+    .tag-go{background:#0f2a14;border:1px solid #1f4a28}
+    .tag-back{background:#2a2412;border:1px solid #5a4b22}
+    .tag-stop{background:#2a1214;border:1px solid #5a2228}
+    .muted{color:var(--muted);font-size:12px;line-height:1.35}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:13px}
+    th{color:var(--muted);font-weight:600;text-align:left}
+    .right{text-align:right}
+    .mono{font-variant-numeric:tabular-nums}
+    .hide{display:none}
+    .tabs{display:flex;gap:8px}
+    .tab{flex:1}
+    .divider{height:1px;background:var(--line);margin:10px 0}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap}
+    .kpi .pill{flex:0 0 auto}
+    .note{min-height:44px}
+  </style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>🏟️ Lactate Coach (MVP)</h1>
+    <div class="row" style="flex:0;gap:8px">
+      <button class="btn" id="btnExport" title="Eksport JSON">Eksport</button>
+      <button class="btn btn-danger" id="btnReset" title="Kasuje bieżącą sesję">Reset sesji</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="btn tab btn-primary" id="tabSession">Sesja</button>
+    <button class="btn tab" id="tabIntervals">Odcinki</button>
+    <button class="btn tab" id="tabHistory">Historia</button>
+  </div>
+
+  <!-- SESJA -->
+  <section id="viewSession" class="grid" style="margin-top:12px">
+    <div class="card">
+      <div class="row">
+        <div class="status">
+          <div id="statusTag" class="tag tag-go">GO</div>
+          <div class="muted" id="statusReason">Wpisz cel i pierwsze odcinki — będę sterował bodźcem.</div>
+        </div>
+        <div class="status" style="align-items:flex-end;text-align:right">
+          <div class="big mono" id="targetRange">—</div>
+          <div class="muted">cel mleczanu</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="kpi">
+        <span class="pill">🧪 Lactate: <b class="mono" id="kpiLac">—</b></span>
+        <span class="pill">↗ Trend: <b id="kpiTrend">—</b></span>
+        <span class="pill">⚙️ Koszt: <b id="kpiCost">—</b></span>
+        <span class="pill">⏱️ Korekta: <b id="kpiAdjust">—</b></span>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h2 style="margin:0 0 8px;font-size:14px">Start sesji</h2>
+
+        <label>Cel jednostki</label>
+        <select id="goal">
+          <option value="">— wybierz —</option>
+          <option value="gold">Specyfika 800 m: ZŁOTO (6–8)</option>
+          <option value="bridge">Specyfika 800 m: MOST (8–10)</option>
+          <option value="test">Test / kalibracja</option>
+          <option value="rhythms">Rytmy / nerwowość</option>
+          <option value="bc">BC / tlen</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>Obciążenie psychiczne (0–10)</label>
+            <input id="mental" type="number" min="0" max="10" step="1" placeholder="np. 4" />
+          </div>
+          <div>
+            <label>Ból ogólny (0–10)</label>
+            <input id="pain" type="number" min="0" max="10" step="1" placeholder="np. 1" />
+          </div>
+        </div>
+
+        <label>Nawierzchnia</label>
+        <select id="surface">
+          <option value="stadion">Stadion</option>
+          <option value="hala">Hala</option>
+          <option value="asfalt">Asfalt</option>
+          <option value="las">Las</option>
+          <option value="trail">Trail</option>
+        </select>
+
+        <label>Carbo</label>
+        <select id="carbo">
+          <option value="none">Brak</option>
+          <option value="lt30">&lt;30 g</option>
+          <option value="30-60">30–60 g</option>
+          <option value="gt60">&gt;60 g</option>
+        </select>
+
+        <label>Notatka (opcjonalnie)</label>
+        <textarea id="note" class="note" placeholder="np. wiatr / nawodnienie / buty"></textarea>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn-primary" id="btnSaveSession">Zapisz start</button>
+          <button class="btn" id="btnGoIntervals">Idź do odcinków →</button>
+        </div>
+
+        <p class="muted" style="margin:10px 0 0">
+          MVP steruje <b>sekundami</b>, nie procentami. HR dodamy w wersji 2 (import z Polar CSV po sesji).
+        </p>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 8px;font-size:14px">Propozycja na teraz</h2>
+        <div class="big mono" id="coachCmd">—</div>
+        <p class="muted" id="coachExplain" style="margin-top:8px">
+          Zaczynamy od sterowania bodźcem w trakcie. Generowanie kolejnej jednostki dodamy po zebraniu danych.
+        </p>
+
+        <div class="divider"></div>
+
+        <h3 style="margin:0 0 8px;font-size:13px">Szybkie zasady (MVP)</h3>
+        <ul class="muted" style="margin:0 0 0 16px">
+          <li>Jeśli mleczan rośnie za wcześnie → zwalniasz <b>+2–3 s</b> albo wydłużasz przerwę.</li>
+          <li>Jeśli mleczan w celu, ale koszt rośnie → skracasz o <b>1 powtórzenie</b>.</li>
+          <li>&gt;12 mmol → <b>STOP</b>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ODCINKI -->
+  <section id="viewIntervals" class="grid hide" style="margin-top:12px">
+    <div class="card">
+      <h2 style="margin:0 0 8px;font-size:14px">Dodaj odcinek</h2>
+
+      <div class="row">
+        <div>
+          <label>Dystans (m)</label>
+          <input id="dist" type="number" min="50" step="50" value="200" />
+        </div>
+        <div>
+          <label>Czas odcinka (mm:ss.xx)</label>
+          <input id="time" type="text" placeholder="np. 00:29.5" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>RPE (1–10) <span class="muted">albo</span> Sprężystość (0–10)</label>
+          <input id="effort" type="number" min="0" max="10" step="1" placeholder="np. 6" />
+        </div>
+        <div>
+          <label>Mleczan (mmol/L) <span class="muted">(opcjonalnie)</span></label>
+          <input id="lactate" type="number" min="0" step="0.1" placeholder="np. 7.4" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-primary" id="btnAdd">Dodaj</button>
+        <button class="btn" id="btnBackToSession">← Zobacz dashboard</button>
+      </div>
+
+      <p class="muted" style="margin:10px 0 0">
+        Tip: mleczan wpisuj zgodnie z protokołem (np. „po 2. odcinku w 2:00 przerwy”). Czas pobrania dodamy w V1.1.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 8px;font-size:14px">Odcinki (bieżąca sesja)</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Dyst.</th>
+              <th class="right">Czas</th>
+              <th class="right">RPE/S</th>
+              <th class="right">Lac</th>
+            </tr>
+          </thead>
+          <tbody id="intervalRows"></tbody>
+        </table>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <button class="btn" id="btnFinish">Zakończ i zapisz sesję</button>
+        <button class="btn btn-danger" id="btnClearIntervals">Usuń odcinki</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORIA -->
+  <section id="viewHistory" class="grid hide" style="margin-top:12px">
+    <div class="card">
+      <h2 style="margin:0 0 8px;font-size:14px">Historia sesji (lokalnie)</h2>
+      <div id="historyList" class="grid"></div>
+      <p class="muted" style="margin:10px 0 0">
+        Dane są w telefonie (localStorage). W kolejnych wersjach dodamy eksport CSV i import HR z Polar Flow.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ---------------------------
+  // Utilities
+  // ---------------------------
+  const $ = (id) => document.getElementById(id);
+
+  function nowISO() {
+    const d = new Date();
+    return d.toISOString();
+  }
+
+  function parseTimeToSeconds(s) {
+    // Accept: mm:ss, mm:ss.xx, ss.xx, ss
+    if (!s || typeof s !== "string") return null;
+    const t = s.trim();
+    if (!t) return null;
+
+    if (t.includes(":")) {
+      const [mm, rest] = t.split(":");
+      const m = Number(mm);
+      const sec = Number(rest);
+      if (!Number.isFinite(m) || !Number.isFinite(sec)) return null;
+      return m * 60 + sec;
+    } else {
+      const sec = Number(t);
+      return Number.isFinite(sec) ? sec : null;
+    }
+  }
+
+  function secondsToPaceHint(distM, sec) {
+    if (!distM || !sec) return null;
+    // just show sec value for now; pace features later
+    return sec;
+  }
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  // ---------------------------
+  // State
+  // ---------------------------
+  const STORAGE_KEY = "lactate_coach_mvp_v1";
+  const HISTORY_KEY = "lactate_coach_history_v1";
+
+  const defaultState = () => ({
+    session: {
+      id: crypto.randomUUID(),
+      startedAt: nowISO(),
+      goal: "",
+      mental: null,
+      pain: null,
+      surface: "stadion",
+      carbo: "none",
+      note: "",
+    },
+    intervals: [],
+  });
+
+  let state = loadState();
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      // basic shape guard
+      if (!parsed.session || !Array.isArray(parsed.intervals)) return defaultState();
+      return parsed;
+    } catch {
+      return defaultState();
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+
+  function saveHistory(hist) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+  }
+
+  // ---------------------------
+  // Decision engine (MVP)
+  // ---------------------------
+  function targetForGoal(goal) {
+    switch (goal) {
+      case "gold": return { lo: 6, hi: 8, label: "6–8 mmol" };
+      case "bridge": return { lo: 8, hi: 10, label: "8–10 mmol" };
+      case "test": return { lo: 6, hi: 10, label: "6–10 mmol" };
+      case "rhythms": return { lo: null, hi: null, label: "bez celu lac" };
+      case "bc": return { lo: null, hi: null, label: "bez celu lac" };
+      default: return { lo: null, hi: null, label: "—" };
+    }
+  }
+
+  function lastLactate(intervals) {
+    for (let i = intervals.length - 1; i >= 0; i--) {
+      const v = intervals[i].lactate;
+      if (Number.isFinite(v)) return v;
+    }
+    return null;
+  }
+
+  function lactateTrend(intervals) {
+    // compare last two lactate values
+    const vals = intervals.map(x => x.lactate).filter(v => Number.isFinite(v));
+    if (vals.length < 2) return "—";
+    const a = vals[vals.length - 2];
+    const b = vals[vals.length - 1];
+    const diff = b - a;
+    if (Math.abs(diff) < 0.3) return "→";
+    return diff > 0 ? "↗" : "↘";
+  }
+
+  function costLevel(session, intervals) {
+    // MVP heuristic: mental + pain + effort + time degradation
+    const mental = Number.isFinite(session.mental) ? session.mental : 0;
+    const pain = Number.isFinite(session.pain) ? session.pain : 0;
+
+    const last = intervals[intervals.length - 1];
+    const effort = last && Number.isFinite(last.effort) ? last.effort : 0;
+
+    let degrade = 0;
+    // if last two times are slower by >0.8s -> degrade++
+    const times = intervals.map(x => x.timeSec).filter(v => Number.isFinite(v));
+    if (times.length >= 2) {
+      const d = times[times.length - 1] - times[times.length - 2];
+      if (d > 0.8) degrade = 2;
+      else if (d > 0.3) degrade = 1;
+    }
+
+    const score = mental * 0.5 + pain * 0.8 + effort * 0.7 + degrade * 1.2;
+    if (score >= 10) return { label: "wysoki", score };
+    if (score >= 6) return { label: "kontrolowany", score };
+    return { label: "niski", score };
+  }
+
+  function suggestAdjustmentSeconds(session, intervals) {
+    const goal = session.goal;
+    const t = targetForGoal(goal);
+    const lac = lastLactate(intervals);
+    const trend = lactateTrend(intervals);
+    const cost = costLevel(session, intervals);
+
+    // defaults
+    let status = "GO";
+    let cmd = "GO";
+    let explain = "Kontynuuj zgodnie z planem. Pilnuj jakości i równego biegu.";
+    let adjust = "0 s";
+
+    // Safety gate (pain)
+    const pain = Number.isFinite(session.pain) ? session.pain : 0;
+    if (pain >= 4) {
+      status = "STOP";
+      cmd = "STOP";
+      explain = "Ból ogólny wysoki (≥4). MVP: nie robimy jakości — priorytet bezpieczeństwa.";
+      return { status, cmd, explain, adjust: "—", lac, trend, cost };
+    }
+
+    // Lactate hard stop
+    if (Number.isFinite(lac) && lac > 12) {
+      status = "STOP";
+      cmd = "STOP";
+      explain = "Mleczan >12 mmol. MVP: kończ jakość, schłodzenie + prehab.";
+      return { status, cmd, explain, adjust: "—", lac, trend, cost };
+    }
+
+    // Non-lactate goals
+    if (goal === "rhythms" || goal === "bc") {
+      // control by cost only
+      if (cost.label === "wysoki") {
+        status = "COFNIJ";
+        cmd = "Skróć o 1–2 powt. / zakończ rytmy";
+        explain = "Koszt wysoki. W rytmach priorytet to sprężystość, nie objętość.";
+        adjust = "+0 s";
+      } else {
+        status = "GO";
+        cmd = "GO (pilnuj sprężystości)";
+        explain = "OK. Zostań przy jakości ruchu, nie dokładaj agresywnie.";
+        adjust = "+0 s";
+      }
+      return { status, cmd, explain, adjust, lac, trend, cost };
+    }
+
+    // Lactate-based goals (gold/bridge/test)
+    if (!Number.isFinite(lac)) {
+      // no lactate yet: steer by cost + time degradation
+      if (cost.label === "wysoki") {
+        status = "COFNIJ";
+        cmd = "Dodaj +2 s / odcinek";
+        explain = "Koszt rośnie, a nie masz jeszcze mleczanu. MVP: uspokój intensywność.";
+        adjust = "+2 s";
+      } else {
+        status = "GO";
+        cmd = "GO (zrób pierwszy pomiar wcześnie)";
+        explain = "Brak mleczanu. MVP: pierwszy pomiar zrób wcześnie, żeby sterować trendem.";
+        adjust = "0 s";
+      }
+      return { status, cmd, explain, adjust, lac, trend, cost };
+    }
+
+    // Now lactate exists
+    const inRange = (Number.isFinite(t.lo) && Number.isFinite(t.hi)) ? (lac >= t.lo && lac <= t.hi) : null;
+
+    // For gold: penalize high early
+    if (goal === "gold") {
+      if (lac > 9) {
+        status = "COFNIJ";
+        cmd = "Dodaj +2–3 s / odcinek  OR  +30 s przerwy";
+        explain = "Za wysoko jak na ZŁOTO. Priorytet: mleczan ma rosnąć późno, nie wcześnie.";
+        adjust = "+2–3 s";
+      } else if (lac < 5.5 && cost.label !== "wysoki") {
+        status = "COFNIJ";
+        cmd = "Odejmij −1–2 s / odcinek  OR  skróć przerwę";
+        explain = "Za nisko względem celu 6–8 (jeśli to już etap główny sesji).";
+        adjust = "−1–2 s";
+      } else if (inRange) {
+        if (cost.label === "wysoki") {
+          status = "COFNIJ";
+          cmd = "Skróć o 1 powtórzenie";
+          explain = "Mleczan w celu, ale koszt wysoki — wygrywa powtarzalność i lekkość.";
+          adjust = "objętość ↓";
+        } else {
+          status = "GO";
+          cmd = "GO";
+          explain = "Mleczan w złocie. Kontynuuj, ostatnie mają być najlepsze.";
+          adjust = "0 s";
+        }
+      } else {
+        status = "GO";
+        cmd = "GO (pilnuj trendu)";
+        explain = "OK. Obserwuj trend i jakość. Nie dokładaj agresywnie.";
+        adjust = "0 s";
+      }
+    }
+
+    if (goal === "bridge") {
+      if (lac > 10.5) {
+        status = "COFNIJ";
+        cmd = "Dodaj +2 s / odcinek  i skróć sesję";
+        explain = "Most ma być krótki i kontrolowany. Nie eskalujemy do >12.";
+        adjust = "+2 s";
+      } else if (lac < 7.5 && cost.label !== "wysoki") {
+        status = "COFNIJ";
+        cmd = "Odejmij −1–2 s / odcinek";
+        explain = "Za nisko jak na most 8–10 (jeśli to faza bodźca).";
+        adjust = "−1–2 s";
+      } else if (lac >= 8 && lac <= 10) {
+        if (cost.label === "wysoki") {
+          status = "COFNIJ";
+          cmd = "Skróć o 1 powtórzenie";
+          explain = "W mostach koszt rośnie szybko — tnij objętość, nie dokręcaj tempa.";
+          adjust = "objętość ↓";
+        } else {
+          status = "GO";
+          cmd = "GO (krótko)";
+          explain = "Jesteś w 8–10. Nie przedłużaj — jakość > ilość.";
+          adjust = "0 s";
+        }
+      }
+    }
+
+    if (goal === "test") {
+      // flexible but still avoid >12
+      if (lac > 11) {
+        status = "COFNIJ";
+        cmd = "Dodaj +2 s / odcinek";
+        explain = "W teście nie idziemy w strefę ryzyka. Zbieramy dane, nie palimy sesji.";
+        adjust = "+2 s";
+      } else {
+        status = "GO";
+        cmd = "GO (zbieraj trend)";
+        explain = "Test: kluczowy jest trend narastania. Zapisuj czasy i pomiary.";
+        adjust = "0 s";
+      }
+    }
+
+    return { status, cmd, explain, adjust, lac, trend, cost };
+  }
+
+  // ---------------------------
+  // UI render
+  // ---------------------------
+  function setActiveTab(which) {
+    const tabs = [
+      { btn: $("tabSession"), view: $("viewSession"), key: "session" },
+      { btn: $("tabIntervals"), view: $("viewIntervals"), key: "intervals" },
+      { btn: $("tabHistory"), view: $("viewHistory"), key: "history" },
+    ];
+    tabs.forEach(t => {
+      const active = t.key === which;
+      t.btn.classList.toggle("btn-primary", active);
+      t.view.classList.toggle("hide", !active);
+    });
+  }
+
+  function renderSessionForm() {
+    $("goal").value = state.session.goal || "";
+    $("mental").value = Number.isFinite(state.session.mental) ? state.session.mental : "";
+    $("pain").value = Number.isFinite(state.session.pain) ? state.session.pain : "";
+    $("surface").value = state.session.surface || "stadion";
+    $("carbo").value = state.session.carbo || "none";
+    $("note").value = state.session.note || "";
+  }
+
+  function renderIntervalsTable() {
+    const tb = $("intervalRows");
+    tb.innerHTML = "";
+    state.intervals.forEach((it, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${idx+1}</td>
+        <td class="mono">${it.distM} m</td>
+        <td class="right mono">${it.timeStr ?? "—"}</td>
+        <td class="right mono">${Number.isFinite(it.effort) ? it.effort : "—"}</td>
+        <td class="right mono">${Number.isFinite(it.lactate) ? it.lactate.toFixed(1) : "—"}</td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderDashboard() {
+    const t = targetForGoal(state.session.goal);
+    $("targetRange").textContent = t.label;
+
+    const d = suggestAdjustmentSeconds(state.session, state.intervals);
+
+    // status tag
+    const tag = $("statusTag");
+    tag.classList.remove("tag-go", "tag-back", "tag-stop");
+    if (d.status === "GO") tag.classList.add("tag-go");
+    if (d.status === "COFNIJ") tag.classList.add("tag-back");
+    if (d.status === "STOP") tag.classList.add("tag-stop");
+    tag.textContent = d.status;
+
+    $("statusReason").textContent = d.explain;
+    $("coachCmd").textContent = d.cmd;
+    $("coachExplain").textContent = d.explain;
+
+    $("kpiLac").textContent = Number.isFinite(d.lac) ? d.lac.toFixed(1) : "—";
+    $("kpiTrend").textContent = d.trend;
+    $("kpiCost").textContent = d.cost.label;
+    $("kpiAdjust").textContent = d.adjust;
+  }
+
+  function renderHistory() {
+    const hist = loadHistory();
+    const box = $("historyList");
+    box.innerHTML = "";
+    if (hist.length === 0) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "Brak zapisanych sesji.";
+      box.appendChild(p);
+      return;
+    }
+
+    hist.slice().reverse().forEach(s => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const started = new Date(s.startedAt).toLocaleString();
+      const goalLabel = targetForGoal(s.goal).label;
+      const lastL = lastLactate(s.intervals) ?? null;
+
+      card.innerHTML = `
+        <div class="row">
+          <div>
+            <div class="mono"><b>${started}</b></div>
+            <div class="muted">${goalLabel} • ${s.surface} • Carbo: ${s.carbo}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="mono"><b>${s.intervals.length}</b> odc.</div>
+            <div class="muted">Lac: ${Number.isFinite(lastL) ? lastL.toFixed(1) : "—"}</div>
+          </div>
+        </div>
+        ${s.note ? `<div class="muted" style="margin-top:8px">📝 ${escapeHtml(s.note)}</div>` : ""}
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-load="${s.id}">Wczytaj</button>
+          <button class="btn btn-danger" data-del="${s.id}">Usuń</button>
+        </div>
+      `;
+      box.appendChild(card);
+    });
+
+    // wire buttons
+    box.querySelectorAll("button[data-load]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-load");
+        const hist = loadHistory();
+        const found = hist.find(x => x.id === id);
+        if (!found) return;
+        state = { session: { ...found, goal: found.goal }, intervals: found.intervals };
+        saveState();
+        renderAll();
+        setActiveTab("session");
+      });
+    });
+
+    box.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del");
+        let hist = loadHistory();
+        hist = hist.filter(x => x.id !== id);
+        saveHistory(hist);
+        renderHistory();
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function renderAll() {
+    renderSessionForm();
+    renderIntervalsTable();
+    renderDashboard();
+    renderHistory();
+  }
+
+  // ---------------------------
+  // Event handlers
+  // ---------------------------
+  $("tabSession").addEventListener("click", () => setActiveTab("session"));
+  $("tabIntervals").addEventListener("click", () => setActiveTab("intervals"));
+  $("tabHistory").addEventListener("click", () => setActiveTab("history"));
+
+  $("btnGoIntervals").addEventListener("click", () => setActiveTab("intervals"));
+  $("btnBackToSession").addEventListener("click", () => setActiveTab("session"));
+
+  $("btnSaveSession").addEventListener("click", () => {
+    state.session.goal = $("goal").value;
+    state.session.mental = $("mental").value === "" ? null : clamp(Number($("mental").value), 0, 10);
+    state.session.pain = $("pain").value === "" ? null : clamp(Number($("pain").value), 0, 10);
+    state.session.surface = $("surface").value;
+    state.session.carbo = $("carbo").value;
+    state.session.note = $("note").value || "";
+    saveState();
+    renderDashboard();
+  });
+
+  $("btnAdd").addEventListener("click", () => {
+    const distM = Number($("dist").value);
+    const timeStr = $("time").value.trim();
+    const timeSec = parseTimeToSeconds(timeStr);
+    if (!Number.isFinite(distM) || distM <= 0) {
+      alert("Podaj poprawny dystans.");
+      return;
+    }
+    if (!Number.isFinite(timeSec) || timeSec <= 0) {
+      alert("Podaj poprawny czas (mm:ss.xx).");
+      return;
+    }
+    const effortRaw = $("effort").value === "" ? null : Number($("effort").value);
+    const effort = Number.isFinite(effortRaw) ? clamp(effortRaw, 0, 10) : null;
+    const lacRaw = $("lactate").value === "" ? null : Number($("lactate").value);
+    const lactate = Number.isFinite(lacRaw) ? lacRaw : null;
+
+    state.intervals.push({
+      distM,
+      timeStr,
+      timeSec,
+      effort,
+      lactate,
+      at: nowISO(),
+    });
+
+    // clear only time + lactate for speed
+    $("time").value = "";
+    $("lactate").value = "";
+    saveState();
+    renderIntervalsTable();
+    renderDashboard();
+  });
+
+  $("btnClearIntervals").addEventListener("click", () => {
+    if (!confirm("Usunąć wszystkie odcinki z bieżącej sesji?")) return;
+    state.intervals = [];
+    saveState();
+    renderIntervalsTable();
+    renderDashboard();
+  });
+
+  $("btnFinish").addEventListener("click", () => {
+    // ensure session saved
+    state.session.goal = $("goal").value || state.session.goal;
+    state.session.mental = $("mental").value === "" ? state.session.mental : clamp(Number($("mental").value), 0, 10);
+    state.session.pain = $("pain").value === "" ? state.session.pain : clamp(Number($("pain").value), 0, 10);
+    state.session.surface = $("surface").value || state.session.surface;
+    state.session.carbo = $("carbo").value || state.session.carbo;
+    state.session.note = $("note").value ?? state.session.note;
+
+    const record = {
+      id: state.session.id,
+      startedAt: state.session.startedAt,
+      goal: state.session.goal,
+      mental: state.session.mental,
+      pain: state.session.pain,
+      surface: state.session.surface,
+      carbo: state.session.carbo,
+      note: state.session.note,
+      intervals: state.intervals.slice(),
+      finishedAt: nowISO(),
+    };
+
+    const hist = loadHistory();
+    // replace if same id exists
+    const idx = hist.findIndex(x => x.id === record.id);
+    if (idx >= 0) hist[idx] = record; else hist.push(record);
+    saveHistory(hist);
+
+    alert("Zapisano sesję do historii.");
+    renderHistory();
+    setActiveTab("history");
+  });
+
+  $("btnReset").addEventListener("click", () => {
+    if (!confirm("Zresetować bieżącą sesję?")) return;
+    state = defaultState();
+    saveState();
+    renderAll();
+    setActiveTab("session");
+  });
+
+  $("btnExport").addEventListener("click", () => {
+    const payload = {
+      current: state,
+      history: loadHistory(),
+      exportedAt: nowISO()
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "lactate-coach-export.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // Initial render
+  renderAll();
+  setActiveTab("session");
+
+  // ---------------------------
+  // PWA: register service worker
+  // ---------------------------
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        await navigator.serviceWorker.register("./sw.js");
+      } catch (e) {
+        // silent
+      }
+    });
+  }
+</script>
+</body>
+</html>
