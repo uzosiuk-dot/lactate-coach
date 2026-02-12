@@ -806,7 +806,7 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", async () => {
       try {
-        await navigator.serviceWorker.register("./sw.js");
+        await navigator.serviceWorker.register("/lactate-coach/sw.js");
       } catch (e) {
         // silent
       }
