@@ -1,4 +1,4 @@
-const CACHE_NAME = "lactate-coach-v2026-02-13-2";
+const CACHE_NAME = "lactate-coach-v2026-02-13-3";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./sw.js"];
 
 self.addEventListener("install", (event) => {
