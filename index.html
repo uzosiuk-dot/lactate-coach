@@ -928,7 +928,7 @@ function updateSessionImport(parsed) {
   saveState();
   applyImportToForm();
   renderAll();
- 
+  applyImportToForm();
 
   const distKm = parsed.distanceM ? (parsed.distanceM/1000).toFixed(2) : "—";
   const dur = parsed.durationS ? formatDuration(parsed.durationS) : "—";
