@@ -927,6 +927,7 @@ function updateSessionImport(parsed) {
 
   saveState();
   renderAll();
+  applyImportToForm();
 
   const distKm = parsed.distanceM ? (parsed.distanceM/1000).toFixed(2) : "—";
   const dur = parsed.durationS ? formatDuration(parsed.durationS) : "—";
@@ -1003,6 +1004,21 @@ document.getElementById("btnInstall")?.addEventListener("click", async () => {
   deferredPrompt = null;
   document.getElementById("btnInstall").style.display = "none";
 });
+  function applyImportToForm() {
+  if (!state.session?.import) return;
+
+  const imp = state.session.import;
+
+  const dist = imp.distanceM ? (imp.distanceM / 1000).toFixed(2) : "";
+  const dur = imp.durationS ? formatDuration(imp.durationS) : "";
+  const hrA = imp.hrAvg ? Math.round(imp.hrAvg) : "";
+  const hrM = imp.hrMax ? Math.round(imp.hrMax) : "";
+
+  document.getElementById("impDistanceKm").value = dist;
+  document.getElementById("impDuration").value = dur;
+  document.getElementById("impHrAvg").value = hrA;
+  document.getElementById("impHrMax").value = hrM;
+}
 </script>
 </body>
 </html>
