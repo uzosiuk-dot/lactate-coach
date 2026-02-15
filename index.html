@@ -359,18 +359,28 @@ function resetSessionState() {
 
   let state = loadState();
 
-  function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultState();
-      const parsed = JSON.parse(raw);
-      // basic shape guard
-      if (!parsed.session || !Array.isArray(parsed.intervals)) return defaultState();
-      return parsed;
-    } catch {
-      return defaultState();
+ function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+
+    const parsed = JSON.parse(raw);
+
+    // basic shape guard
+    if (!parsed.session || !Array.isArray(parsed.intervals)) return defaultState();
+
+    // migrate old state
+    if (!parsed.session.performedAt) {
+      parsed.session.performedAt = parsed.session.startedAt
+        ? parsed.session.startedAt.slice(0, 10)
+        : todayISODate();
     }
+
+    return parsed;
+  } catch {
+    return defaultState();
   }
+}
 
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
