@@ -685,74 +685,106 @@ function saveHistory(hist) {
   state = defaultState();
 }
 
-  function renderHistory() {
-    const hist = loadHistory();
-    const box = $("historyList");
-    box.innerHTML = "";
-    if (hist.length === 0) {
-      const p = document.createElement("p");
-      p.className = "muted";
-      p.textContent = "Brak zapisanych sesji.";
-      box.appendChild(p);
-      return;
-    }
+function renderHistory() {
+  const hist = loadHistory();
+  const box = $("historyList");
+  box.innerHTML = "";
 
- hist
-  .slice()
-  .sort((a, b) => {
-    const da = a.performedAt || (a.startedAt ? a.startedAt.slice(0,10) : "");
-    const db = b.performedAt || (b.startedAt ? b.startedAt.slice(0,10) : "");
-    return db.localeCompare(da); // malejąco (najnowsze u góry)
-  })
-    .forEach(s => {
+  if (!Array.isArray(hist) || hist.length === 0) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Brak zapisanych sesji.";
+    box.appendChild(p);
+    return;
+  }
+
+  // sort po dacie treningu (performedAt) z fallbackiem
+  const sorted = hist
+    .slice()
+    .sort((a, b) => {
+      const da = (a?.performedAt || (a?.startedAt ? a.startedAt.slice(0, 10) : "")).slice(0, 10);
+      const db = (b?.performedAt || (b?.startedAt ? b.startedAt.slice(0, 10) : "")).slice(0, 10);
+      return db.localeCompare(da);
+    });
+
+  // render cards
+  sorted.forEach(s => {
     const card = document.createElement("div");
     card.className = "card";
 
-    const started = s.performedAt
+    const started = s?.performedAt
       ? s.performedAt.split("-").reverse().join(".")
-      : (s.startedAt
+      : (s?.startedAt
           ? s.startedAt.slice(0, 10).split("-").reverse().join(".")
           : "—");
 
-    const goalLabel = targetForGoal(s.goal).label;
-    const lastL = lastLactate(Array.isArray(s.intervals) ? s.intervals : []) ?? null;
+    // SAFE goal label (nie ryzykujemy .label na undefined)
+    let goalLabel = "—";
+    try {
+      const g = targetForGoal?.(s?.goal);
+      goalLabel = g?.label || (s?.goal ? String(s.goal) : "—");
+    } catch {
+      goalLabel = s?.goal ? String(s.goal) : "—";
+    }
+
+    const intervalsArr = Array.isArray(s?.intervals) ? s.intervals : [];
+    const lastL = (() => {
+      try { return lastLactate(intervalsArr) ?? null; } catch { return null; }
+    })();
+
+    const intervalsCount = intervalsArr.length;
 
     card.innerHTML = `
-      <div class="row">
+      <div class="row" style="align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div class="mono"><b>${started}</b></div>
-          <div class="muted">${goalLabel} • ${s.surface} • Carbo: ${s.carbo}</div>
+          <div class="muted">${goalLabel} • ${s?.surface || "—"} • Carbo: ${s?.carbo || "—"}</div>
         </div>
+
         <div style="text-align:right">
-          <div class="mono"><b>${(Array.isArray(s.intervals) ? s.intervals.length : 0)}</b> odc.</div>
+          <div class="mono"><b>${intervalsCount}</b> odc.</div>
+          <div class="muted">${lastL == null ? "" : `Last L: ${lastL}`}</div>
         </div>
+      </div>
+
+      <div class="row" style="gap:8px; margin-top:10px;">
+        <button class="btn" data-load="${s?.id || ""}" ${s?.id ? "" : "disabled"}>Otwórz</button>
       </div>
     `;
 
     box.appendChild(card);
   });
 
-    // wire buttons
-    box.querySelectorAll("button[data-load]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-load");
-        const hist = loadHistory();
-        const found = hist.find(x => x.id === id);
-        if (!found) return;
-        state = {
-  session: {
-    ...found,
-    goal: found.goal,
-    performedAt: found.performedAt || (found.startedAt ? found.startedAt.slice(0, 10) : todayISODate()),
-  },
-  intervals: found.intervals
-};
+  // EVENT DELEGATION: jeden listener, zawsze działa
+  if (!box.dataset.bound) {
+    box.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-load]");
+      if (!btn) return;
 
-        saveState();
-        renderAll();
-        setActiveTab("session");
-      });
+      const id = btn.getAttribute("data-load");
+      if (!id) return;
+
+      const histNow = loadHistory();
+      const found = histNow.find(x => x.id === id);
+      if (!found) return;
+
+      state = {
+        session: {
+          ...found,
+          performedAt: found.performedAt || (found.startedAt ? found.startedAt.slice(0, 10) : todayISODate()),
+        },
+        intervals: Array.isArray(found.intervals) ? found.intervals : [],
+      };
+
+      saveState();
+      renderAll();
+      setActiveTab("session");
     });
+
+    box.dataset.bound = "1";
+  }
+}
+
 
    $("btnReset")?.addEventListener("click", () => {
   resetSessionState();
