@@ -704,36 +704,33 @@ function saveHistory(hist) {
     const db = b.performedAt || (b.startedAt ? b.startedAt.slice(0,10) : "");
     return db.localeCompare(da); // malejąco (najnowsze u góry)
   })
-  .forEach(s => {
-      
-   const started = s.performedAt
-  ? s.performedAt.split("-").reverse().join(".")
-  : (s.startedAt
-      ? s.startedAt.slice(0, 10).split("-").reverse().join(".")
-      : "—");
-      
-      const goalLabel = targetForGoal(s.goal).label;
-      const lastL = lastLactate(s.intervals) ?? null;
+    .forEach(s => {
+    const card = document.createElement("div");
+    card.className = "card";
 
-      card.innerHTML = `
-        <div class="row">
-          <div>
-            <div class="mono"><b>${started}</b></div>
-            <div class="muted">${goalLabel} • ${s.surface} • Carbo: ${s.carbo}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="mono"><b>${s.intervals.length}</b> odc.</div>
-            <div class="muted">Lac: ${Number.isFinite(lastL) ? lastL.toFixed(1) : "—"}</div>
-          </div>
+    const started = s.performedAt
+      ? s.performedAt.split("-").reverse().join(".")
+      : (s.startedAt
+          ? s.startedAt.slice(0, 10).split("-").reverse().join(".")
+          : "—");
+
+    const goalLabel = targetForGoal(s.goal).label;
+    const lastL = lastLactate(Array.isArray(s.intervals) ? s.intervals : []) ?? null;
+
+    card.innerHTML = `
+      <div class="row">
+        <div>
+          <div class="mono"><b>${started}</b></div>
+          <div class="muted">${goalLabel} • ${s.surface} • Carbo: ${s.carbo}</div>
         </div>
-        ${s.note ? `<div class="muted" style="margin-top:8px">📝 ${escapeHtml(s.note)}</div>` : ""}
-        <div class="row" style="margin-top:10px">
-          <button class="btn" data-load="${s.id}">Wczytaj</button>
-          <button class="btn btn-danger" data-del="${s.id}">Usuń</button>
+        <div style="text-align:right">
+          <div class="mono"><b>${(Array.isArray(s.intervals) ? s.intervals.length : 0)}</b> odc.</div>
         </div>
-      `;
-      box.appendChild(card);
-    });
+      </div>
+    `;
+
+    box.appendChild(card);
+  });
 
     // wire buttons
     box.querySelectorAll("button[data-load]").forEach(btn => {
