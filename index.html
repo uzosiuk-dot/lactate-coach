@@ -311,19 +311,25 @@ html
   const STORAGE_KEY = "lactate_coach_mvp_v1";
   const HISTORY_KEY = "lactate_coach_history_v1";
 
-  const defaultState = () => ({
-    session: {
-      id: crypto.randomUUID(),
-      startedAt: nowISO(),
-      goal: "",
-      mental: null,
-      pain: null,
-      surface: "stadion",
-      carbo: "none",
-      note: "",
-    },
-    intervals: [],
-  });
+ const defaultState = () => ({
+  session: {
+    id: crypto.randomUUID(),
+    startedAt: nowISO(),
+    goal: "",
+    mental: null,
+    pain: null,
+    surface: "stadion",
+    carbo: "none",
+    note: "",
+  },
+  intervals: [],
+});
+
+function resetSessionState() {
+  const fresh = defaultState();
+  state.session = fresh.session;
+  state.intervals = fresh.intervals;
+}
 
   let state = loadState();
 
