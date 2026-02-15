@@ -627,6 +627,10 @@ function resetSessionState() {
     $("kpiAdjust").textContent = d.adjust;
   }
 
+  function resetSessionState() {
+  state = defaultState();
+}
+
   function renderHistory() {
     const hist = loadHistory();
     const box = $("historyList");
