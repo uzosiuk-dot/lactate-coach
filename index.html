@@ -860,42 +860,29 @@ function saveHistory(hist) {
   });
 
 $("btnFinish").addEventListener("click", () => {
-  // ensure session saved
-  state.session.performedAt = $("performedAt").value || state.session.performedAt;
+  console.log("BTN FINISH CLICKED");
 
-  state.session.goal = $("goal").value || state.session.goal;
-  state.session.mental = $("mental").value === "" ? state.session.mental : clamp(Number($("mental").value), 0, 10);
-  state.session.pain = $("pain").value === "" ? state.session.pain : clamp(Number($("pain").value), 0, 10);
-  state.session.surface = $("surface").value || state.session.surface;
-  state.session.carbo = $("carbo").value || state.session.carbo;
-  state.session.note = $("note").value ?? state.session.note;
+  try {
+    // ... (Twój kod ustawiania state.session.*)
 
-  const record = {
-    id: state.session.id,
-    startedAt: state.session.startedAt,       // techniczne
-    performedAt: state.session.performedAt,   // DATA TRENINGU (najważniejsze)
-    goal: state.session.goal,
-    mental: state.session.mental,
-    pain: state.session.pain,
-    surface: state.session.surface,
-    carbo: state.session.carbo,
-    note: state.session.note,
-    intervals: state.intervals.slice(),
-    finishedAt: nowISO(),
-  };
+    const record = { /* ... */ };
 
-  const hist = loadHistory();
-  const idx = hist.findIndex(x => x.id === record.id);
-  if (idx >= 0) hist[idx] = record;
-  else hist.push(record);
+    const hist = loadHistory();
+    console.log("HIST BEFORE", hist.length);
 
-  saveHistory(hist);
-  saveState(); // <- dopisz to, żeby stan też był zapisany
+    const idx = hist.findIndex(x => x.id === record.id);
+    if (idx >= 0) hist[idx] = record; else hist.push(record);
 
-  alert("Zapisano sesję do historii.");
-  renderHistory();
-  setActiveTab("history");
+    saveHistory(hist);
+    console.log("HIST AFTER SAVE", loadHistory().length);
+
+    // (reszta: alert/renderHistory/setActiveTab)
+  } catch (e) {
+    console.error("BTN FINISH ERROR", e);
+    alert("Błąd zapisu historii: " + (e?.message || e));
+  }
 });
+
 
 
 $("btnReset").addEventListener("click", () => {
