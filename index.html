@@ -671,10 +671,21 @@ function resetSessionState() {
       return;
     }
 
-    hist.slice().reverse().forEach(s => {
-      const card = document.createElement("div");
-      card.className = "card";
-      const started = new Date(s.startedAt).toLocaleString();
+ hist
+  .slice()
+  .sort((a, b) => {
+    const da = a.performedAt || (a.startedAt ? a.startedAt.slice(0,10) : "");
+    const db = b.performedAt || (b.startedAt ? b.startedAt.slice(0,10) : "");
+    return db.localeCompare(da); // malejąco (najnowsze u góry)
+  })
+  .forEach(s => {
+      
+   const started = s.performedAt
+  ? s.performedAt.split("-").reverse().join(".")
+  : (s.startedAt
+      ? s.startedAt.slice(0, 10).split("-").reverse().join(".")
+      : "—");
+      
       const goalLabel = targetForGoal(s.goal).label;
       const lastL = lastLactate(s.intervals) ?? null;
 
