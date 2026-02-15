@@ -387,6 +387,22 @@ function resetSessionState() {
   }
 
   function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(hist) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+}
+
+
+  function loadHistory() {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (!raw) return [];
@@ -879,13 +895,14 @@ function resetSessionState() {
     setActiveTab("history");
   });
 
-  $("btnReset").addEventListener("click", () => {
-    if (!confirm("Zresetować bieżącą sesję?")) return;
-    state = defaultState();
-    saveState();
-    renderAll();
-    setActiveTab("session");
-  });
+$("btnReset").addEventListener("click", () => {
+  if (!confirm("Zresetować bieżącą sesję?")) return;
+
+  state = defaultState();
+  saveState();
+  renderAll();
+  setActiveTab("session");
+});
 
   $("btnExport").addEventListener("click", () => {
     const payload = {
