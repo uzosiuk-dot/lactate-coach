@@ -103,6 +103,11 @@ html
       <div class="card">
         <h2 style="margin:0 0 8px;font-size:14px">Start sesji</h2>
 
+        <div>
+  <label>Data treningu</label>
+  <input id="performedAt" type="date" />
+</div>
+
         <label>Cel jednostki</label>
         <select id="goal">
           <option value="">— wybierz —</option>
@@ -311,10 +316,11 @@ html
   const STORAGE_KEY = "lactate_coach_mvp_v1";
   const HISTORY_KEY = "lactate_coach_history_v1";
 
- const defaultState = () => ({
+const defaultState = () => ({
   session: {
     id: crypto.randomUUID(),
     startedAt: nowISO(),
+    performedAt: todayISODate(),
     goal: "",
     mental: null,
     pain: null,
@@ -324,6 +330,14 @@ html
   },
   intervals: [],
 });
+
+  function todayISODate() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function resetSessionState() {
   const fresh = defaultState();
@@ -591,6 +605,8 @@ function resetSessionState() {
   }
 
   function renderSessionForm() {
+    $("performedAt").value = state.session.performedAt || "";
+
     $("goal").value = state.session.goal || "";
     $("mental").value = Number.isFinite(state.session.mental) ? state.session.mental : "";
     $("pain").value = Number.isFinite(state.session.pain) ? state.session.pain : "";
@@ -800,6 +816,9 @@ function resetSessionState() {
 
   $("btnFinish").addEventListener("click", () => {
     // ensure session saved
+    
+    state.session.performedAt = $("performedAt").value || state.session.performedAt;
+
     state.session.goal = $("goal").value || state.session.goal;
     state.session.mental = $("mental").value === "" ? state.session.mental : clamp(Number($("mental").value), 0, 10);
     state.session.pain = $("pain").value === "" ? state.session.pain : clamp(Number($("pain").value), 0, 10);
