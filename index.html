@@ -330,6 +330,18 @@ function resetSessionState() {
   state.session = fresh.session;
   state.intervals = fresh.intervals;
 }
+  
+  function resetImportUI() {
+  const ids = ["impDistanceKm", "impDuration", "impHrAvg", "impHrMax"];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  const file = document.getElementById("fileImport");
+  if (file) file.value = "";
+}
 
   let state = loadState();
 
@@ -684,8 +696,9 @@ function resetSessionState() {
       });
     });
 
-    $("btnReset")?.addEventListener("click", () => {
+   $("btnReset")?.addEventListener("click", () => {
   resetSessionState();
+  resetImportUI();
 
   console.log("after reset", state.session, state.intervals.length);
 
